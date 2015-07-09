@@ -10,25 +10,19 @@ using Xunit;
 
 namespace EntityFramework.Microbenchmarks.EF6.ChangeTracker
 {
-    public class FixupTests
+    public class FixupTests : IClassFixture<FixupTests.DatabaseFixture>
     {
-        private static readonly string _connectionString
-            = $@"Server={BenchmarkConfig.Instance.BenchmarkDatabaseInstance};Database=Perf_ChangeTracker_Fixup_EF6;Integrated Security=True;MultipleActiveResultSets=true;";
+        private readonly DatabaseFixture _databaseFixture;
 
-        public FixupTests()
+        public FixupTests(DatabaseFixture databaseFixture)
         {
-            new OrdersSeedData().EnsureCreated(
-                _connectionString,
-                productCount: 100,
-                customerCount: 100,
-                ordersPerCustomer: 1,
-                linesPerOrder: 1);
+            _databaseFixture = databaseFixture;
         }
 
         [Benchmark(Iterations = 10, WarmupIterations = 5)]
         public void AddChildren(MetricCollector collector)
         {
-            using (var context = new OrdersContext(_connectionString))
+            using (var context = new OrdersContext(_databaseFixture.ConnectionString))
             {
                 var customers = context.Customers.ToList();
                 Assert.Equal(100, customers.Count);
@@ -54,12 +48,12 @@ namespace EntityFramework.Microbenchmarks.EF6.ChangeTracker
         public void AttachChildren(MetricCollector collector)
         {
             List<Order> orders;
-            using (var context = new OrdersContext(_connectionString))
+            using (var context = new OrdersContext(_databaseFixture.ConnectionString))
             {
                 orders = context.Orders.ToList();
             }
 
-            using (var context = new OrdersContext(_connectionString))
+            using (var context = new OrdersContext(_databaseFixture.ConnectionString))
             {
                 var customers = context.Customers.ToList();
                 Assert.Equal(100, orders.Count);
@@ -81,12 +75,12 @@ namespace EntityFramework.Microbenchmarks.EF6.ChangeTracker
         public void AttachParents(MetricCollector collector)
         {
             List<Customer> customers;
-            using (var context = new OrdersContext(_connectionString))
+            using (var context = new OrdersContext(_databaseFixture.ConnectionString))
             {
                 customers = context.Customers.ToList();
             }
 
-            using (var context = new OrdersContext(_connectionString))
+            using (var context = new OrdersContext(_databaseFixture.ConnectionString))
             {
                 var orders = context.Orders.ToList();
                 Assert.Equal(100, orders.Count);
@@ -107,7 +101,7 @@ namespace EntityFramework.Microbenchmarks.EF6.ChangeTracker
         [Benchmark(Iterations = 10, WarmupIterations = 5)]
         public void QueryChildren(MetricCollector collector)
         {
-            using (var context = new OrdersContext(_connectionString))
+            using (var context = new OrdersContext(_databaseFixture.ConnectionString))
             {
                 context.Customers.ToList();
 
@@ -124,7 +118,7 @@ namespace EntityFramework.Microbenchmarks.EF6.ChangeTracker
         [Benchmark(Iterations = 10, WarmupIterations = 5)]
         public void QueryParents(MetricCollector collector)
         {
-            using (var context = new OrdersContext(_connectionString))
+            using (var context = new OrdersContext(_databaseFixture.ConnectionString))
             {
                 context.Orders.ToList();
 
@@ -136,6 +130,21 @@ namespace EntityFramework.Microbenchmarks.EF6.ChangeTracker
                 Assert.Equal(100, context.ChangeTracker.Entries<Order>().Count());
                 Assert.All(customers, c => Assert.Equal(1, c.Orders.Count));
             }
+        }
+
+        public class DatabaseFixture
+        {
+            public DatabaseFixture()
+            {
+                new OrdersSeedData().EnsureCreated(
+                    ConnectionString,
+                    productCount: 100,
+                    customerCount: 100,
+                    ordersPerCustomer: 1,
+                    linesPerOrder: 1);
+            }
+
+            public string ConnectionString { get; } = $@"Server={BenchmarkConfig.Instance.BenchmarkDatabaseInstance};Database=Perf_ChangeTracker_Fixup_EF6;Integrated Security=True;MultipleActiveResultSets=true;";
         }
     }
 }
