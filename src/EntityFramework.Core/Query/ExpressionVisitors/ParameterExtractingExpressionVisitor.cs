@@ -64,6 +64,18 @@ namespace Microsoft.Data.Entity.Query.ExpressionVisitors
 
             var e = expression;
 
+            while(e.NodeType == ExpressionType.Convert)
+            {
+                e = ((UnaryExpression)e).Operand;
+            }
+
+            if(e is ConstantExpression)
+            {
+                return expression;
+            }
+
+            e = expression;
+
             if (expression.NodeType == ExpressionType.Convert)
             {
                 var unaryExpression = (UnaryExpression)expression;
